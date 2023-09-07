@@ -1,30 +1,30 @@
 # Simple File Organizer: ScriptKit & Cohere Integration
 
 ## Introduction
-Welcome to the home of a quick and nifty script that takes the hassle out of file organization. Leveraging the prowess of Cohere's LLM Classify Model and John Lindquist's Script Kit, it promises a seamless and automated way to keep your directories neat and organized.
+Welcome to the hub of a swift and efficient script designed to streamline your file organization process. By merging the capabilities of Cohere's LLM Classify Model with the utilities offered by John Lindquist's Script Kit, this script automates the file organization process, saving you time and hassle.
 
 ## How It Functions
-The script is designed to scrutinize file names within a designated folder, engaging Cohere's AI for classification, followed by arranging them into corresponding folders based on the categorization data. Moreover, it has an optional feature to keep a vigil on a folder and sort newly added files automatically.
+This script delves through file names within a specified directory, utilizing the Cohere API for classification. Subsequently, it allocates the files into respective folders according to their classification data. An added feature allows for ongoing monitoring of a folder, automatically sorting new files as they are added. The script now operates asynchronously, enhancing performance by allowing multiple operations to run in parallel.
 
-Here's a closer look at its workflow:
+Here's a deeper insight into its workflow:
 
-1. **Kick-start**: Launch the 'organize' script, a handy creation facilitated by Script Kit by John Lindquist.
-2. **Classification of Files**: Cohere's API springs into action, categorizing file names efficiently and with precision.
-3. **Sorting and Organization**: After the classification, files find their new home in respective folders. If a file's classification confidence is below 50%, it safely lands in an 'unclassified' folder.
-4. **Continuous Monitoring** (Optional): Activate this feature if you want the script to continuously oversee a folder, arranging new files as they are added.
+1. **Kick-start**: Launch the 'organize' script, a versatile tool empowered by Script Kit by John Lindquist.
+2. **Classification of Files**: The script taps into Cohere's API, classifying file names swiftly and accurately.
+3. **Sorting and Organization**: Post-classification, files are migrated to folders that match their classification. Files with a classification confidence below 50% are housed in an 'unclassified' folder, ensuring clear categorization.
+4. **Continuous Monitoring** (Optional): Enable this feature to allow the script to constantly monitor a folder and organize new files as they come in.
 
 ## Setting It Up
 
 ### Requirements
 - Node.js installed (version X.X.X or later)
-- Active Cohere API key
+- An active Cohere API key
 
 ### Setup Steps
 1. Clone this repository: 
    ```
    git clone https://github.com/yourusername/File-Organizer-ScriptKit-Cohere.git
    ```
-2. Move to the project folder:
+2. Navigate to the project folder:
    ```
    cd File-Organizer-ScriptKit-Cohere
    ```
@@ -32,23 +32,23 @@ Here's a closer look at its workflow:
    ```
    npm install
    ```
-4. Input your Cohere API key in a `.env` file located in the project root:
+4. Register your Cohere API key in a `.env` file situated at the project root:
    ```
    COHERE_API_KEY=your_api_key_here
    ```
 
 ## Running the Script
-1. Modify the folder path in the script to aim at your intended directory.
-2. Execute the script:
+1. Adjust the directory path in the script to point to your target directory.
+2. Run the script:
    ```
    npm run organize
    ```
 
 ## Contributions
-Community contributions are encouraged! Feel free to fork this project and propose your enhancements or ideas through a pull request.
+Community contributions are greatly appreciated! Please feel free to fork this project and submit your improvements or ideas through a pull request.
 
 ## License
-This project is distributed under the MIT License. For more information, refer to the LICENSE file.
+This project is distributed under the MIT License. See the LICENSE file for more details.
 
 ## Get in Touch
-If any queries or feedback springs up, don't hesitate to [open an issue](https://github.com/ryannono/File-Organizer-ScriptKit-Cohere/issues) or reach out to me directly.
+Should you have any queries or feedback, please [open an issue](https://github.com/ryannono/File-Organizer-ScriptKit-Cohere/issues) or contact me directly.
