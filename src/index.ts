@@ -1,136 +1,157 @@
 // Name: organize
-// eslint-disable-next-line import/no-extraneous-dependencies
 import '@johnlindquist/kit';
-
-// External libraries
-import fs, { promises as fsPromises } from 'fs';
-import path from 'path';
+import { rename } from 'fs/promises';
+import { join } from 'path';
 
 // Data
-import examples from './cohereClassifyExamples.json' assert { type: 'json' };
+import examples from './data/examples.json' assert { type: 'json' };
 
 // Types
 import {
   Classification,
   ClassificationAPIResponse,
-} from './types';
+} from '../types/ClassificationAPIResponse.ts';
 
 /**
  * Handles the classification of a single file. Depending on the classification
- * result, the file may be moved to a respective folder based on its
- * classification or moved to an 'unclassified' folder if it doesn't meet
- * the confidence threshold.
+ * result, the file is moved to a respective folder based on its classification
+ * or moved to an 'unclassified' folder if the confidence level is below the
+ * threshold (0.5).
  *
- * @param classification - An object representing a single classification result
- * from the Cohere API.
- * @param directory - The directory where the original file is located and where
- * new classification directories will be created.
+ * @async
+ * @function
+ * @param {Classification} classification - An object representing a single
+ * classification result from the Cohere API, which includes details like the
+ * file name (input), predicted classification, confidence level, and associated
+ * labels.
  *
- * @throws May throw an error if file operations (such as directory creation or
- * file renaming) fail.
+ * @param {string} directory - The directory where the original file is located
+ * and where new classification directories will be created.
+ *
+ * @returns {Promise<void>} A promise that resolves when the file has been
+ * successfully moved to its new classification directory.
+ *
+ * @throws May throw an error if directory creation or file renaming fails.
+ *
+ * @example
+ *
+ * await handleClassification(classificationData, directoryPath);
  */
 async function handleClassification(
   classification: Classification,
   directory: string
-) {
-  const { input: fileName, prediction, labels, confidence } = classification;
+): Promise<void> {
+  const { input: fileName, prediction, confidence, labels } = classification;
 
-  const spacedFileName = fileName.replaceAll('-', ' ');
+  if (fileName.replaceAll('-', ' ') in labels) return;
 
-  const classificationDir = prediction.replaceAll(' ', '-');
-  const classificationDirPath = path.join(directory, classificationDir);
+  const classificationDir =
+    confidence >= 0.5 ? prediction.replaceAll(' ', '-') : 'unclassified';
 
-  const oldFilePath = path.join(directory, fileName);
-  let newFilePath = path.join(directory, classificationDir, fileName);
-
-  if (!(spacedFileName in labels) && spacedFileName !== 'unclassified') {
-    if (confidence < 0.5) {
-      const unclassifiedDirPath = path.join(directory, 'unclassified');
-
-      if (!fs.existsSync(unclassifiedDirPath)) {
-        await fsPromises.mkdir(unclassifiedDirPath);
-      }
-
-      newFilePath = path.join(unclassifiedDirPath, fileName);
-    } else if (!fs.existsSync(classificationDirPath)) {
-      await fsPromises.mkdir(classificationDirPath);
-    }
-
-    await fsPromises.rename(oldFilePath, newFilePath);
-  }
+  await mkdirp(join(directory, classificationDir));
+  await rename(
+    join(directory, fileName),
+    join(directory, classificationDir, fileName)
+  );
 }
 
 /**
- * An asynchronous function that organizes files in a directory based on
- * classification data received from the Cohere API. Files are grouped into
- * directories according to their classification labels.
+ * Organizes files in a directory based on classifications received from the
+ * Cohere API. Files are grouped into directories according to their
+ * classifications.
  *
- * @param directory - The path to the directory containing the files to be
- * organized.
+ * The function reads all the files in the specified directory, then sends
+ * batches of filenames (up to a maximum size) to the Cohere API for
+ * classification. Depending on the classification results, it moves the files
+ * to respective folders. If an error occurs during the process, it will display
+ * a message indicating the failure.
+ *
+ * @async
+ * @function
+ * @param {string} directory - The path of the directory to be organized. All
+ * files in this directory will be classified and moved to respective
+ * classification folders.
+ *
+ * @returns {Promise<void>} A promise that resolves when all files have been
+ * classified and moved to their respective directories.
+ *
+ * @throws Will throw an error if reading the directory, fetching the API key,
+ * posting to the API, or moving files fails.
  *
  * @example
  *
- * if (folderPath) organize(folderPath);
- *
- * @throws Will display a success or error message at the end of the organization
- * process.
+ * async function main() {
+ *   try {
+ *     await organize('/path/to/directory');
+ *   } catch (error) {
+ *     console.error('Failed to organize directory:', error);
+ *   }
+ * }
  */
-async function organize(directory: string) {
-  const dirFiles = fs.readdirSync(directory);
+async function organize(directory: string): Promise<void> {
+  const dirFiles = await readdir(directory);
 
   // partition input for API
   // max allowable input size
-  const chunkSize = 90;
-  const chunks = Array.from(
-    { length: Math.ceil(dirFiles.length / chunkSize) },
+  const MAX_INPUT_ARRAY_SIZE = 96;
+  const inputArrays = Array.from(
+    { length: Math.ceil(dirFiles.length / MAX_INPUT_ARRAY_SIZE) },
     (chunk, index) =>
-      dirFiles.slice(index * chunkSize, index * chunkSize + chunkSize)
+      dirFiles.slice(
+        index * MAX_INPUT_ARRAY_SIZE,
+        index * MAX_INPUT_ARRAY_SIZE + MAX_INPUT_ARRAY_SIZE
+      )
   );
 
   // Cohere API key
   const COHERE_API_KEY = await env('COHERE_API_KEY');
 
   try {
-    // Define API promises
-    const promises = chunks.map((chunk) =>
-      post<ClassificationAPIResponse>(
-        'https://api.cohere.ai/v1/classify',
-        { truncate: 'END', inputs: chunk, examples },
-        {
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${COHERE_API_KEY}`,
-          },
-        }
-      ).then((response) =>
-        response.data.classifications.map((classification) =>
-          handleClassification(classification, directory)
-        )
-      )
+    // Classify each chunk
+    await Promise.all(
+      inputArrays.map(async (inputArray) => {
+        const { data } = await post<ClassificationAPIResponse>(
+          'https://api.cohere.ai/v1/classify',
+          { truncate: 'END', inputs: inputArray, examples },
+          {
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${COHERE_API_KEY}`,
+            },
+          }
+        );
+
+        return Promise.all(
+          data.classifications.map((classification) =>
+            handleClassification(classification, directory)
+          )
+        );
+      })
     );
 
-    await Promise.all(promises);
     await div(
       md(
-        `# The ${directory
+        `# The "${directory
           .split('/')
-          .at(-1)} folder was successfully organized!`
+          .at(-1)}" folder was successfully organized!`
       )
     );
   } catch (error) {
     await div(
       md(
-        `# The ${directory
+        `# The "${directory
           .split('/')
           .at(
             -1
-          )} folder failed to be organized with the following error: ${error}`
+          )}" folder failed to be organized with the following error: ${error}`
       )
     );
   }
 }
 
-const folderPath = await selectFolder();
+await organize(
+  await path().catch((error) => div(md(`# An error occurred: ${error}`)))
+);
 
-organize(folderPath);
+process.exit();
